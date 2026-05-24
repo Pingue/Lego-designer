@@ -24,7 +24,10 @@ import shutil
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(ROOT / ".env")
 DATA_DIR = ROOT / "data"
 OUT_DIR = DATA_DIR / "lego_bricks"
 RAW_DIR = DATA_DIR / "raw"
