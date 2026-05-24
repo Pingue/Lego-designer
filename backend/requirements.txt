@@ -6,5 +6,5 @@ torchvision
 Pillow
 ollama
 python-dotenv
-roboflow
+kaggle
 fpdf2

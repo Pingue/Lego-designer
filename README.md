@@ -33,15 +33,29 @@ pip install -r requirements.txt
 
 ### 3. Download dataset & train the classifier
 
-You need a free Roboflow API key ([sign up here](https://roboflow.com)):
+The script uses the [LEGO Brick Images](https://www.kaggle.com/datasets/joosthazelzet/lego-brick-images) dataset from Kaggle (~40k images, 50 brick types).
+
+**Get a Kaggle API token** at https://www.kaggle.com/settings → *API* → *Create New Token*.  
+This downloads `kaggle.json`. Then either:
 
 ```bash
-export ROBOFLOW_API_KEY=your_key_here
-python scripts/download_dataset.py
-python scripts/train.py          # ~20 min CPU / ~3 min GPU
+# Option A — place the file (recommended)
+mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/
+chmod 600 ~/.kaggle/kaggle.json
+
+# Option B — env vars
+export KAGGLE_USERNAME=your_username
+export KAGGLE_KEY=your_api_key
 ```
 
-Or place your own ImageFolder dataset at:
+Then run:
+
+```bash
+python scripts/download_dataset.py   # downloads + splits into train/valid/test
+python scripts/train.py              # ~20 min CPU / ~3 min GPU
+```
+
+Or skip the download and place your own ImageFolder dataset at:
 ```
 data/lego_bricks/
   train/<class_name>/*.jpg
