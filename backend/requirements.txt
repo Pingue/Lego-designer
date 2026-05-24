@@ -7,3 +7,4 @@ Pillow
 ollama
 python-dotenv
 roboflow
+fpdf2

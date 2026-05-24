@@ -57,6 +57,11 @@ class BuildPlanRequest(BaseModel):
     prompt: str
 
 
+class ExportPdfRequest(BaseModel):
+    plan_text: str
+    prompt: str
+
+
 # ── routes ────────────────────────────────────────────────────────────────────
 
 @app.post("/classify")
@@ -106,6 +111,22 @@ def build_plan(prompt: str = ""):
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.post("/export-pdf")
+def export_pdf(req: ExportPdfRequest):
+    from planner.pdf_export import generate_pdf
+    from fastapi.responses import Response
+
+    counts = _counts()
+    pdf_bytes = generate_pdf(req.plan_text, req.prompt, counts)
+    safe_name = req.prompt[:40].replace('"', "").replace("/", "-").strip() or "lego-plan"
+    filename = f"{safe_name}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/classes")

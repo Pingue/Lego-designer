@@ -26,6 +26,8 @@ ollama serve           # start the Ollama server (or it starts automatically)
 
 ```bash
 cd backend
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -47,6 +49,8 @@ data/lego_bricks/
 ```
 
 ### 4. Start the backend
+
+Make sure the venv is active first (`source backend/.venv/bin/activate`), then:
 
 ```bash
 cd backend
@@ -80,6 +84,7 @@ Open **http://localhost:5173**
    *e.g. "Build the most impressive space station possible"*
 2. Click **Generate Plan** (or Ctrl+Enter)
 3. Watch the AI stream a step-by-step build plan in real time
+4. Once generation finishes, click **Download PDF** to save a Lego-manual-style PDF
 
 ---
 
@@ -92,6 +97,7 @@ Open **http://localhost:5173**
 | `GET` | `/inventory` | Get current piece counts |
 | `DELETE` | `/inventory` | Clear inventory |
 | `GET` | `/build-plan?prompt=...` | Stream a build plan (SSE) |
+| `POST` | `/export-pdf` | Generate a Lego-manual PDF from plan text |
 | `GET` | `/classes` | List known piece classes |
 
 ---

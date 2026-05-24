@@ -22,6 +22,22 @@ export async function clearInventory() {
   return data;
 }
 
+export async function exportPdf(planText, prompt) {
+  const response = await api.post(
+    "/export-pdf",
+    { plan_text: planText, prompt },
+    { responseType: "blob" },
+  );
+  const url = URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${prompt.slice(0, 40).trim() || "lego-plan"}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /**
  * Opens an SSE connection to /build-plan?prompt=...
  * Calls onChunk(text) for each token, onDone() when finished, onError(err) on failure.

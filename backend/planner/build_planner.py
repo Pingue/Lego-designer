@@ -42,7 +42,8 @@ def stream_build_plan(
         "3. Key structural decisions and techniques\n"
         "4. Step-by-step build order (foundation first)\n"
         "5. Any clever or advanced Lego techniques to make it impressive\n"
-        "Use as many of the available pieces as possible."
+        "Use as many of the structural building blocks as possible — you don't need to "
+        "force every single piece into the design if it doesn't serve the build."
     )
 
     try:

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { streamBuildPlan } from "../api.js";
+import { streamBuildPlan, exportPdf } from "../api.js";
 
 const styles = {
   container: {
@@ -73,6 +73,16 @@ const styles = {
   statusRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#666" },
   dot: { width: 8, height: 8, borderRadius: "50%", background: "#4caf50" },
   errorText: { color: "#ff6b6b", fontSize: 13 },
+  btnPdf: {
+    background: "#ffd700",
+    color: "#1a1a2e",
+    border: "none",
+    borderRadius: 6,
+    padding: "10px 18px",
+    fontWeight: 700,
+    cursor: "pointer",
+    fontSize: 13,
+  },
 };
 
 // Render text with basic markdown-like formatting (bold **text**, numbered lists)
@@ -86,6 +96,8 @@ export default function BuildPlannerPanel({ inventoryTotal }) {
   const [prompt, setPrompt] = useState("");
   const [planText, setPlanText] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [planDone, setPlanDone] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState("");
   const stopRef = useRef(null);
   const outputRef = useRef(null);
@@ -109,13 +121,14 @@ export default function BuildPlannerPanel({ inventoryTotal }) {
     if (!prompt.trim()) return;
     setPlanText("");
     setError("");
+    setPlanDone(false);
     setStreaming(true);
 
     const stop = streamBuildPlan(
       prompt,
       (chunk) => setPlanText((prev) => prev + chunk),
-      () => setStreaming(false),
-      (err) => {
+      () => { setStreaming(false); setPlanDone(true); },
+      () => {
         setError("Connection error. Is the backend running?");
         setStreaming(false);
       },
@@ -126,6 +139,17 @@ export default function BuildPlannerPanel({ inventoryTotal }) {
   const handleStop = () => {
     stopRef.current?.();
     setStreaming(false);
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      await exportPdf(planText, prompt);
+    } catch {
+      setError("PDF export failed. Is the backend running?");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   return (
@@ -159,6 +183,16 @@ export default function BuildPlannerPanel({ inventoryTotal }) {
         </button>
         {streaming && (
           <button style={styles.btnStop} onClick={handleStop}>Stop</button>
+        )}
+        {planDone && planText && !streaming && (
+          <button
+            style={{ ...styles.btnPdf, opacity: exportingPdf ? 0.6 : 1 }}
+            onClick={handleExportPdf}
+            disabled={exportingPdf}
+            title="Download as Lego-style PDF manual"
+          >
+            {exportingPdf ? "Exporting…" : "Download PDF"}
+          </button>
         )}
       </div>
 
