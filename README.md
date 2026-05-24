@@ -36,12 +36,11 @@ pip install -r requirements.txt
 The script uses the [LEGO Brick Images](https://www.kaggle.com/datasets/joosthazelzet/lego-brick-images) dataset from Kaggle (~40k images, 50 brick types).
 
 **Get your Kaggle token** at https://www.kaggle.com/settings → *API*.  
-Kaggle shows something like `export KAGGLE_API_TOKEN={"username":"...","key":"..."}`.  
-Copy the JSON value (the part after `=`) into a `.env` file at the project root:
+Kaggle gives you `export KAGGLE_API_TOKEN=KGAT_...` — copy just the token value into a `.env` file at the project root:
 
 ```bash
 cp .env.example .env
-# Edit .env and paste your JSON token as the value of KAGGLE_API_TOKEN
+# Edit .env: set KAGGLE_API_TOKEN=KGAT_your_token_here
 ```
 
 Then run:

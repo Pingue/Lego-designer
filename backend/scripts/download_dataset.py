@@ -18,7 +18,6 @@ Output:
     test/<class_name>/*.png
 """
 
-import json
 import os
 import random
 import re
@@ -30,17 +29,6 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
-
-# Kaggle now issues a single JSON token: {"username": "...", "key": "..."}
-# Unpack it into the env vars the kaggle package expects.
-_token = os.environ.get("KAGGLE_API_TOKEN", "").strip()
-if _token:
-    try:
-        _data = json.loads(_token)
-        os.environ.setdefault("KAGGLE_USERNAME", _data["username"])
-        os.environ.setdefault("KAGGLE_KEY", _data["key"])
-    except (json.JSONDecodeError, KeyError):
-        pass  # let kaggle's own auth handle the error with a clear message
 DATA_DIR = ROOT / "data"
 OUT_DIR = DATA_DIR / "lego_bricks"
 RAW_DIR = DATA_DIR / "raw"
