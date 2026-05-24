@@ -4,12 +4,13 @@ the ImageFolder structure expected by train.py.
 
 Dataset: joosthazelzet/lego-brick-images  (~40k images, 50 brick types)
 
-Authentication — one of:
-  A) Place kaggle.json at ~/.kaggle/kaggle.json
-       {"username": "your_username", "key": "your_api_key"}
-  B) Set env vars: KAGGLE_USERNAME and KAGGLE_KEY
+Authentication:
+  Create a kaggle.json file at the project root (gitignored):
+      {"username": "your_username", "key": "your_token"}
+  Copy the template to get started:
+      cp kaggle.json.example kaggle.json
 
-Get your API key at: https://www.kaggle.com/settings → "API" → "Create New Token"
+Get your token at: https://www.kaggle.com/settings → "API"
 
 Output:
   data/lego_bricks/
@@ -29,6 +30,17 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
+
+# Point the kaggle library at our local, gitignored kaggle.json.
+# This must happen before `import kaggle`, which authenticates on import.
+KAGGLE_JSON = ROOT / "kaggle.json"
+if KAGGLE_JSON.exists():
+    os.environ["KAGGLE_CONFIG_DIR"] = str(ROOT)
+    try:
+        os.chmod(KAGGLE_JSON, 0o600)  # kaggle warns about world-readable creds
+    except OSError:
+        pass
+
 DATA_DIR = ROOT / "data"
 OUT_DIR = DATA_DIR / "lego_bricks"
 RAW_DIR = DATA_DIR / "raw"
@@ -114,31 +126,37 @@ def _split_and_copy(classes: dict[str, list[Path]], out_dir: Path) -> None:
 
 # ── download ──────────────────────────────────────────────────────────────────
 
+def _print_credentials_help() -> None:
+    print("No Kaggle credentials found.\n")
+    print("Create a kaggle.json file at the project root:")
+    print(f"  cp {ROOT / 'kaggle.json.example'} {KAGGLE_JSON}")
+    print("Then edit it with your details from https://www.kaggle.com/settings → API:")
+    print('  {"username": "your_username", "key": "your_token"}')
+
+
 def download_kaggle() -> None:
-    try:
-        import kaggle  # noqa: F401 — triggers authentication check
-    except ImportError:
-        print("kaggle package not installed. Run: pip install kaggle")
+    has_creds = (
+        KAGGLE_JSON.exists()
+        or (os.environ.get("KAGGLE_USERNAME") and os.environ.get("KAGGLE_KEY"))
+        or os.environ.get("KAGGLE_API_TOKEN")
+    )
+    if not has_creds:
+        _print_credentials_help()
         sys.exit(1)
 
-    from kaggle.api.kaggle_api_extended import KaggleApiExtended
-    api = KaggleApiExtended()
     try:
-        api.authenticate()
-    except Exception as e:
-        print(f"Kaggle authentication failed: {e}")
-        print()
-        print("To authenticate, either:")
-        print("  A) Download kaggle.json from https://www.kaggle.com/settings")
-        print("     and place it at ~/.kaggle/kaggle.json")
-        print("  B) Set environment variables:")
-        print("       export KAGGLE_USERNAME=your_username")
-        print("       export KAGGLE_KEY=your_api_key")
+        import kaggle  # authenticates on import using KAGGLE_CONFIG_DIR / env vars
+    except ImportError:
+        print("kaggle package not installed. Run: pip install -r requirements.txt")
+        sys.exit(1)
+    except OSError as e:
+        print(f"Kaggle authentication failed: {e}\n")
+        _print_credentials_help()
         sys.exit(1)
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading {KAGGLE_DATASET} → {RAW_DIR} ...")
-    api.dataset_download_files(KAGGLE_DATASET, path=str(RAW_DIR), unzip=True, quiet=False)
+    print(f"Downloading {KAGGLE_DATASET} -> {RAW_DIR} ...")
+    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=str(RAW_DIR), unzip=True, quiet=False)
     print("Download complete.\n")
 
 

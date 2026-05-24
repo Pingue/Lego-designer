@@ -13,8 +13,9 @@ backend/models/*.pt
 # Dataset (large)
 data/
 
-# Env
+# Env / credentials
 .env
+kaggle.json
 
 # Node
 frontend/node_modules/
