@@ -23,6 +23,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
+from tqdm import tqdm
 
 ROOT = Path(__file__).parent.parent
 DATA_DIR = ROOT.parent / "data" / "lego_bricks"
@@ -110,7 +111,9 @@ def main():
         # ── train ──
         model.train()
         train_loss, train_correct, train_total = 0.0, 0, 0
-        for images, labels in train_loader:
+        train_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{EPOCHS} [train]",
+                         unit="batch", dynamic_ncols=True)
+        for images, labels in train_bar:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(images)
@@ -120,18 +123,24 @@ def main():
             train_loss += loss.item() * images.size(0)
             train_correct += (outputs.argmax(1) == labels).sum().item()
             train_total += images.size(0)
+            train_bar.set_postfix(loss=f"{train_loss/train_total:.4f}",
+                                  acc=f"{train_correct/train_total:.3f}")
 
         # ── validate ──
         model.eval()
         val_loss, val_correct, val_total = 0.0, 0, 0
+        val_bar = tqdm(valid_loader, desc=f"Epoch {epoch}/{EPOCHS} [valid]",
+                       unit="batch", dynamic_ncols=True)
         with torch.no_grad():
-            for images, labels in valid_loader:
+            for images, labels in val_bar:
                 images, labels = images.to(device), labels.to(device)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item() * images.size(0)
                 val_correct += (outputs.argmax(1) == labels).sum().item()
                 val_total += images.size(0)
+                val_bar.set_postfix(loss=f"{val_loss/val_total:.4f}",
+                                    acc=f"{val_correct/val_total:.3f}")
 
         scheduler.step()
 
