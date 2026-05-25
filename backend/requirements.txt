@@ -7,4 +7,5 @@ Pillow
 ollama
 python-dotenv
 kaggle>=1.6.0
+tqdm
 fpdf2

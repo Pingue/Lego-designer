@@ -24,6 +24,7 @@ import random
 import re
 import shutil
 import sys
+import zipfile
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -89,7 +90,18 @@ def _find_classes(root: Path) -> dict[str, list[Path]]:
     return classes
 
 
+def _unzip_with_progress(zip_path: Path, dest: Path) -> None:
+    from tqdm import tqdm
+    with zipfile.ZipFile(zip_path) as zf:
+        members = zf.infolist()
+        with tqdm(total=len(members), desc="Extracting", unit="files", dynamic_ncols=True) as bar:
+            for member in members:
+                zf.extract(member, dest)
+                bar.update(1)
+
+
 def _split_and_copy(classes: dict[str, list[Path]], out_dir: Path) -> None:
+    from tqdm import tqdm
     random.seed(RANDOM_SEED)
 
     for split in ("train", "valid", "test"):
@@ -97,7 +109,7 @@ def _split_and_copy(classes: dict[str, list[Path]], out_dir: Path) -> None:
 
     total = {"train": 0, "valid": 0, "test": 0}
 
-    for cls_name, images in sorted(classes.items()):
+    for cls_name, images in tqdm(sorted(classes.items()), desc="Organising", unit="class", dynamic_ncols=True):
         imgs = images.copy()
         random.shuffle(imgs)
         n = len(imgs)
@@ -155,8 +167,21 @@ def download_kaggle() -> None:
         sys.exit(1)
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"Downloading {KAGGLE_DATASET} -> {RAW_DIR} ...")
-    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=str(RAW_DIR), unzip=True, quiet=False)
+
+    # Download the zip with kaggle's built-in tqdm progress bar
+    print(f"Downloading {KAGGLE_DATASET} ...")
+    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=str(RAW_DIR), unzip=False, quiet=False)
+
+    # Unzip ourselves so we can show a second progress bar
+    zips = list(RAW_DIR.glob("*.zip"))
+    if not zips:
+        print("No zip found after download — kaggle may have already extracted the files.")
+    else:
+        for zip_path in zips:
+            print(f"\nUnzipping {zip_path.name} ...")
+            _unzip_with_progress(zip_path, RAW_DIR)
+            zip_path.unlink()
+
     print("Download complete.\n")
 
 
