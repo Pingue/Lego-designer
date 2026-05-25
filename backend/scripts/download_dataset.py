@@ -32,15 +32,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(ROOT / ".env")
 
-# Point the kaggle library at our local, gitignored kaggle.json.
-# This must happen before `import kaggle`, which authenticates on import.
+# Credentials are read from this gitignored file (or KAGGLE_USERNAME/KAGGLE_KEY).
 KAGGLE_JSON = ROOT / "kaggle.json"
-if KAGGLE_JSON.exists():
-    os.environ["KAGGLE_CONFIG_DIR"] = str(ROOT)
-    try:
-        os.chmod(KAGGLE_JSON, 0o600)  # kaggle warns about world-readable creds
-    except OSError:
-        pass
 
 DATA_DIR = ROOT / "data"
 OUT_DIR = DATA_DIR / "lego_bricks"
@@ -146,42 +139,72 @@ def _print_credentials_help() -> None:
     print('  {"username": "your_username", "key": "your_token"}')
 
 
-def download_kaggle() -> None:
-    has_creds = (
-        KAGGLE_JSON.exists()
-        or (os.environ.get("KAGGLE_USERNAME") and os.environ.get("KAGGLE_KEY"))
-        or os.environ.get("KAGGLE_API_TOKEN")
-    )
-    if not has_creds:
-        _print_credentials_help()
-        sys.exit(1)
+def _read_credentials() -> tuple[str | None, str | None]:
+    import json
+    for path in (KAGGLE_JSON, Path.home() / ".kaggle" / "kaggle.json"):
+        if path.exists():
+            try:
+                data = json.loads(path.read_text())
+                if data.get("username") and data.get("key"):
+                    return data["username"], data["key"]
+            except (json.JSONDecodeError, OSError):
+                pass
+    user = os.environ.get("KAGGLE_USERNAME")
+    key = os.environ.get("KAGGLE_KEY")
+    if user and key:
+        return user, key
+    return None, None
 
-    try:
-        import kaggle  # authenticates on import using KAGGLE_CONFIG_DIR / env vars
-    except ImportError:
-        print("kaggle package not installed. Run: pip install -r requirements.txt")
-        sys.exit(1)
-    except OSError as e:
-        print(f"Kaggle authentication failed: {e}\n")
+
+def download_kaggle() -> None:
+    """
+    Download directly over HTTP with requests + tqdm.
+
+    We bypass kaggle.api.dataset_download_files() because some kaggle
+    library versions (1.7.x) crash with
+        TypeError: call() got an unexpected keyword argument 'headers'
+    The Kaggle API supports HTTP Basic auth (username + key/token), which
+    is all we need, and a Range header lets us resume a partial download.
+    """
+    import requests
+    from tqdm import tqdm
+
+    username, key = _read_credentials()
+    if not (username and key):
         _print_credentials_help()
         sys.exit(1)
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
+    zip_path = RAW_DIR / "lego-brick-images.zip"
+    url = f"https://www.kaggle.com/api/v1/datasets/download/{KAGGLE_DATASET}"
 
-    # Download the zip with kaggle's built-in tqdm progress bar
+    resume = zip_path.stat().st_size if zip_path.exists() else 0
+    headers = {"Range": f"bytes={resume}-"} if resume else {}
+
     print(f"Downloading {KAGGLE_DATASET} ...")
-    kaggle.api.dataset_download_files(KAGGLE_DATASET, path=str(RAW_DIR), unzip=False, quiet=False)
+    with requests.get(url, auth=(username, key), headers=headers,
+                      stream=True, allow_redirects=True, timeout=60) as r:
+        if r.status_code == 416:  # range not satisfiable → already complete
+            print("Already fully downloaded.")
+        else:
+            if resume and r.status_code == 200:
+                resume = 0  # server ignored Range; restart from scratch
+            r.raise_for_status()
 
-    # Unzip ourselves so we can show a second progress bar
-    zips = list(RAW_DIR.glob("*.zip"))
-    if not zips:
-        print("No zip found after download — kaggle may have already extracted the files.")
-    else:
-        for zip_path in zips:
-            print(f"\nUnzipping {zip_path.name} ...")
-            _unzip_with_progress(zip_path, RAW_DIR)
-            zip_path.unlink()
+            total = int(r.headers.get("content-length", 0)) + resume
+            mode = "ab" if resume else "wb"
+            with open(zip_path, mode) as f, tqdm(
+                total=total or None, initial=resume, unit="B", unit_scale=True,
+                desc="Downloading", dynamic_ncols=True,
+            ) as bar:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+                        bar.update(len(chunk))
 
+    print(f"\nUnzipping {zip_path.name} ...")
+    _unzip_with_progress(zip_path, RAW_DIR)
+    zip_path.unlink()
     print("Download complete.\n")
 
 

@@ -6,6 +6,6 @@ torchvision
 Pillow
 ollama
 python-dotenv
-kaggle>=1.6.0
+requests
 tqdm
 fpdf2
