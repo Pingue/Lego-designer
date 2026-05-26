@@ -15,6 +15,7 @@ Saves:
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -33,10 +34,10 @@ CLASSES_PATH = MODELS_DIR / "classes.json"
 
 # ── hyper-parameters ──────────────────────────────────────────────────────────
 EPOCHS = 20
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LR = 1e-3
 WEIGHT_DECAY = 1e-4
-NUM_WORKERS = 2
+NUM_WORKERS = max(2, (os.cpu_count() or 4) - 2)
 IMAGE_SIZE = 224
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -88,10 +89,13 @@ def main():
 
     # pin_memory only helps CUDA; it's unsupported on MPS and warns.
     pin_memory = device == "cuda"
+    persistent = NUM_WORKERS > 0
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
-                              num_workers=NUM_WORKERS, pin_memory=pin_memory)
+                              num_workers=NUM_WORKERS, pin_memory=pin_memory,
+                              persistent_workers=persistent)
     valid_loader = DataLoader(valid_ds, batch_size=BATCH_SIZE, shuffle=False,
-                              num_workers=NUM_WORKERS, pin_memory=pin_memory)
+                              num_workers=NUM_WORKERS, pin_memory=pin_memory,
+                              persistent_workers=persistent)
 
     sys.path.insert(0, str(ROOT))
     from classifier.model import build_model
