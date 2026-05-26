@@ -35,15 +35,19 @@ def stream_build_plan(
     user_message = (
         f"I have the following {total} Lego pieces available:\n"
         f"{inventory_text}\n\n"
+        "STRICT CONSTRAINT: You may ONLY use pieces from the list above. "
+        "Do not mention, suggest, or imply the use of any piece not on this list. "
+        "If a technique would normally need a piece you don't have, adapt the design "
+        "to work with what is available instead.\n\n"
         f"My goal: {prompt}\n\n"
-        "Please create a detailed build plan. Include:\n"
+        "Please create a detailed build plan using ONLY the pieces listed. Include:\n"
         "1. Design concept and overall vision\n"
         "2. Approximate dimensions\n"
         "3. Key structural decisions and techniques\n"
         "4. Step-by-step build order (foundation first)\n"
         "5. Any clever or advanced Lego techniques to make it impressive\n"
-        "Use as many of the structural building blocks as possible — you don't need to "
-        "force every single piece into the design if it doesn't serve the build."
+        "Use as many pieces from the inventory as possible — you don't need to force "
+        "every single piece in if it genuinely doesn't serve the build."
     )
 
     try:
