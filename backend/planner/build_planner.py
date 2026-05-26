@@ -47,7 +47,11 @@ def stream_build_plan(
         "4. Step-by-step build order (foundation first)\n"
         "5. Any clever or advanced Lego techniques to make it impressive\n"
         "Use as many pieces from the inventory as possible — you don't need to force "
-        "every single piece in if it genuinely doesn't serve the build."
+        "every single piece in if it genuinely doesn't serve the build.\n\n"
+        "FINAL CHECK: Before finishing, review your plan and confirm that every piece "
+        "you mentioned is present in the inventory list above. "
+        "If you find any piece that is not in the list, remove it or substitute it "
+        "with a piece that is available."
     )
 
     print("\n── OLLAMA PROMPT ──────────────────────────────────")
