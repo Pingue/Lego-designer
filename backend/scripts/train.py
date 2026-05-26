@@ -108,14 +108,16 @@ def main():
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     best_acc = 0.0
 
-    for epoch in range(1, EPOCHS + 1):
+    epoch_bar = tqdm(range(1, EPOCHS + 1), desc="Overall", unit="epoch",
+                     position=0, dynamic_ncols=True)
+    for epoch in epoch_bar:
         t0 = time.time()
 
         # ── train ──
         model.train()
         train_loss, train_correct, train_total = 0.0, 0, 0
         train_bar = tqdm(train_loader, desc=f"Epoch {epoch}/{EPOCHS} [train]",
-                         unit="batch", dynamic_ncols=True)
+                         unit="batch", position=1, leave=False, dynamic_ncols=True)
         for images, labels in train_bar:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -133,7 +135,7 @@ def main():
         model.eval()
         val_loss, val_correct, val_total = 0.0, 0, 0
         val_bar = tqdm(valid_loader, desc=f"Epoch {epoch}/{EPOCHS} [valid]",
-                       unit="batch", dynamic_ncols=True)
+                       unit="batch", position=1, leave=False, dynamic_ncols=True)
         with torch.no_grad():
             for images, labels in val_bar:
                 images, labels = images.to(device), labels.to(device)
@@ -151,7 +153,7 @@ def main():
         val_acc = val_correct / val_total
         elapsed = time.time() - t0
 
-        print(
+        tqdm.write(
             f"Epoch {epoch:2d}/{EPOCHS} | "
             f"train loss {train_loss/train_total:.4f} acc {train_acc:.3f} | "
             f"val loss {val_loss/val_total:.4f} acc {val_acc:.3f} | "
@@ -161,7 +163,9 @@ def main():
         if val_acc > best_acc:
             best_acc = val_acc
             torch.save(model.state_dict(), WEIGHTS_PATH)
-            print(f"  ✓ Saved best model (val acc {best_acc:.3f})")
+            tqdm.write(f"  ✓ Saved best model (val acc {best_acc:.3f})")
+
+        epoch_bar.set_postfix(best_val_acc=f"{best_acc:.3f}")
 
     with open(CLASSES_PATH, "w") as f:
         json.dump(class_names, f, indent=2)
