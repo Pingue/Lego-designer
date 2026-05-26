@@ -50,6 +50,11 @@ def stream_build_plan(
         "every single piece in if it genuinely doesn't serve the build."
     )
 
+    print("\n── OLLAMA PROMPT ──────────────────────────────────")
+    print(f"[system] {_SYSTEM_PROMPT}")
+    print(f"[user]\n{user_message}")
+    print("───────────────────────────────────────────────────\n")
+
     try:
         stream = ollama.chat(
             model=model,
