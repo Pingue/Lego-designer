@@ -221,7 +221,7 @@ def _parse(text: str) -> list[tuple]:
 
         # Body text — strip inline bold markers, normalise bullets
         clean = re.sub(r'\*\*(.*?)\*\*', r'\1', line)
-        clean = re.sub(r'^[-*]\s+', '• ', clean)
+        clean = re.sub(r'^[-*]\s+', '- ', clean)
         body_lines.append(clean)
 
     flush()
