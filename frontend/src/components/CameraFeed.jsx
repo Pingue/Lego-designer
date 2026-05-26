@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { classifyImage, addToInventory } from "../api.js";
 
-const CONFIDENCE_THRESHOLD = 0.5;
+const CONFIDENCE_THRESHOLD = 0.75;
+const MARGIN_THRESHOLD = 0.20;  // top-1 must beat top-2 by this much
 
 const styles = {
   container: {
@@ -108,7 +109,10 @@ export default function CameraFeed({ onPieceScanned }) {
     try {
       const result = await classifyImage(frame);
       setLastResult(result);
-      if (result.confidence >= CONFIDENCE_THRESHOLD) {
+      const margin = result.top3.length >= 2
+        ? result.confidence - result.top3[1].confidence
+        : result.confidence;
+      if (result.confidence >= CONFIDENCE_THRESHOLD && margin >= MARGIN_THRESHOLD) {
         await addToInventory(result.label, result.confidence);
         onPieceScanned?.();
       }
@@ -205,9 +209,15 @@ export default function CameraFeed({ onPieceScanned }) {
           <span style={{ color: confidenceColor(lastResult.confidence) }}>
             {(lastResult.confidence * 100).toFixed(1)}% confidence
           </span>
-          {lastResult.confidence < CONFIDENCE_THRESHOLD && (
-            <span style={{ color: "#ff6b6b" }}> (below threshold — not added)</span>
-          )}
+          {(() => {
+            const margin = lastResult.top3?.length >= 2
+              ? lastResult.confidence - lastResult.top3[1].confidence : lastResult.confidence;
+            if (lastResult.confidence < CONFIDENCE_THRESHOLD)
+              return <span style={{ color: "#ff6b6b" }}> (low confidence — not added)</span>;
+            if (margin < MARGIN_THRESHOLD)
+              return <span style={{ color: "#ff6b6b" }}> (ambiguous — not added)</span>;
+            return null;
+          })()}
         </div>
       )}
     </div>
