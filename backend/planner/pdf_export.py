@@ -15,6 +15,14 @@ MID_GRAY = (160, 160, 160)
 MARGIN = 15
 CONTENT_W = 180  # 210mm A4 - 2 * 15mm
 
+# Step card dimensions
+_BAR_H   = 9    # red title bar
+_ILLUS_H = 48   # illustration box height
+_ILLUS_W = 110  # illustration box width
+_GAP     = 3    # gap between illustration and sidebar
+_SIDE_W  = CONTENT_W - _ILLUS_W - _GAP  # sidebar width
+_CARD_H  = _BAR_H + _ILLUS_H
+
 
 # ── PDF class ─────────────────────────────────────────────────────────────────
 
@@ -148,25 +156,109 @@ def _section_header(pdf: _PDF, text: str) -> None:
     pdf.ln(13)
 
 
-def _step_block(pdf: _PDF, number: str, title: str) -> None:
-    x = MARGIN
-    y = pdf.get_y()
-    badge = 9
+def _step_card(
+    pdf: _PDF,
+    number: str,
+    title: str,
+    body: str,
+    inventory: dict[str, int],
+) -> None:
+    """Full-width step card: red header bar, illustration placeholder, piece sidebar."""
+    # Page-break guard — add a new page if the card won't fit
+    if pdf.get_y() + _CARD_H + 5 > pdf.h - pdf.b_margin:
+        pdf.add_page()
 
+    x0 = MARGIN
+    y0 = pdf.get_y()
+
+    # ── red title bar ──────────────────────────────────────────────────────────
     pdf.set_fill_color(*RED)
-    pdf.rect(x, y, badge, badge, "F")
-
-    pdf.set_font("Helvetica", "B", 7)
     pdf.set_text_color(*WHITE)
-    pdf.set_xy(x, y + (badge - 5) / 2)
-    pdf.cell(badge, 5, number, align="C")
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_xy(x0, y0)
+    label = f"  STEP {number}  -  {title.upper()}"
+    pdf.cell(CONTENT_W, _BAR_H, label[:72], fill=True)  # cap to avoid overflow
 
-    pdf.set_font("Helvetica", "B", 10)
+    iy = y0 + _BAR_H  # top of illustration row
+
+    # ── illustration placeholder ───────────────────────────────────────────────
+    pdf.set_fill_color(*LIGHT_GRAY)
+    pdf.set_draw_color(*MID_GRAY)
+    pdf.set_line_width(0.3)
+    pdf.rect(x0, iy, _ILLUS_W, _ILLUS_H, "DF")
+
+    # Corner tick marks
+    pdf.set_draw_color(*MID_GRAY)
+    pdf.set_line_width(0.6)
+    t = 5
+    for cx, cy, sx, sy in [
+        (x0 + 3,           iy + 3,            1,  1),
+        (x0 + _ILLUS_W - 3, iy + 3,           -1,  1),
+        (x0 + 3,           iy + _ILLUS_H - 3,  1, -1),
+        (x0 + _ILLUS_W - 3, iy + _ILLUS_H - 3, -1, -1),
+    ]:
+        pdf.line(cx, cy, cx + sx * t, cy)
+        pdf.line(cx, cy, cx, cy + sy * t)
+
+    # Stud grid
+    pdf.set_draw_color(215, 215, 215)
+    pdf.set_line_width(0.15)
+    sp = 7.5
+    grid_x0, grid_y0 = x0 + 11, iy + 9
+    cols = int((_ILLUS_W - 22) / sp)
+    rows = int((_ILLUS_H - 18) / sp)
+    r = 1.4
+    for row in range(rows):
+        for col in range(cols):
+            sx2 = grid_x0 + col * sp
+            sy2 = grid_y0 + row * sp
+            pdf.ellipse(sx2 - r, sy2 - r, r * 2, r * 2)
+
+    # Large step number watermark
+    pdf.set_font("Helvetica", "B", 32)
+    pdf.set_text_color(210, 210, 210)
+    pdf.set_xy(x0, iy + (_ILLUS_H - 18) / 2)
+    pdf.cell(_ILLUS_W, 18, number, align="C")
+
+    # ── piece sidebar ──────────────────────────────────────────────────────────
+    sx0 = x0 + _ILLUS_W + _GAP
+    pdf.set_fill_color(250, 250, 250)
+    pdf.set_draw_color(*MID_GRAY)
+    pdf.set_line_width(0.3)
+    pdf.rect(sx0, iy, _SIDE_W, _ILLUS_H, "DF")
+
+    # Yellow "PIECES" header
+    pdf.set_fill_color(*YELLOW)
+    pdf.set_xy(sx0, iy)
+    pdf.set_font("Helvetica", "B", 7)
     pdf.set_text_color(*BLACK)
-    pdf.set_xy(x + badge + 3, y + (badge - 6) / 2)
-    pdf.cell(CONTENT_W - badge - 3, 6, title)
+    pdf.cell(_SIDE_W, 6, "  PIECES", fill=True)
 
-    pdf.set_y(y + badge + 3)
+    # Detect inventory pieces mentioned in this step (case-insensitive)
+    step_lower = (title + " " + body).lower()
+    used = [(name, qty) for name, qty in inventory.items() if name.lower() in step_lower]
+
+    entry_y = iy + 8
+    pdf.set_font("Helvetica", "", 7)
+    pdf.set_text_color(*BLACK)
+    if used:
+        for name, qty in used[:7]:
+            if entry_y + 5 > iy + _ILLUS_H - 1:
+                break
+            short = (name[:20] + "..") if len(name) > 22 else name
+            pdf.set_xy(sx0 + 2, entry_y)
+            pdf.cell(_SIDE_W - 4, 5, f"x{qty}  {short}")
+            entry_y += 5
+    else:
+        pdf.set_text_color(*MID_GRAY)
+        pdf.set_xy(sx0 + 2, entry_y)
+        pdf.multi_cell(_SIDE_W - 4, 5, "See plan\nfor pieces")
+
+    pdf.set_y(y0 + _CARD_H + 2)
+
+    if body:
+        _body_text(pdf, body)
+    pdf.ln(1)
 
 
 def _body_text(pdf: _PDF, text: str) -> None:
@@ -244,13 +336,22 @@ def generate_pdf(plan_text: str, prompt: str, inventory: dict[str, int]) -> byte
     pdf.add_page()
     _section_header(pdf, "Build Plan")
 
-    for el in _parse(plan_text):
-        if el[0] == "header":
+    elements = _parse(plan_text)
+    i = 0
+    while i < len(elements):
+        el = elements[i]
+        if el[0] == "step":
+            # Consume the immediately following body block into the card
+            body = ""
+            if i + 1 < len(elements) and elements[i + 1][0] == "body":
+                i += 1
+                body = elements[i][1]
+            _step_card(pdf, el[1], el[2], body, inventory)
+        elif el[0] == "header":
             pdf.ln(2)
             _section_header(pdf, el[1])
-        elif el[0] == "step":
-            _step_block(pdf, el[1], el[2])
         elif el[0] == "body":
             _body_text(pdf, el[1])
+        i += 1
 
     return bytes(pdf.output())
