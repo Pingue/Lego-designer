@@ -237,12 +237,24 @@ def check_existing() -> bool:
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
+def check_raw() -> bool:
+    """Return True if raw images are already extracted into RAW_DIR."""
+    try:
+        next(RAW_DIR.rglob("*.png"))
+        return True
+    except StopIteration:
+        return False
+
+
 if __name__ == "__main__":
     if check_existing():
         print("Skipping download. Delete data/lego_bricks/ to re-download.")
         sys.exit(0)
 
-    download_kaggle()
+    if check_raw():
+        print(f"Raw images already present at {RAW_DIR}, skipping download.")
+    else:
+        download_kaggle()
 
     print("Scanning downloaded files ...")
     classes = _find_classes(RAW_DIR)
