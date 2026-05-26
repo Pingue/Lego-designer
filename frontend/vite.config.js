@@ -9,6 +9,7 @@ export default defineConfig({
       "/classify": "http://localhost:8000",
       "/inventory": "http://localhost:8000",
       "/build-plan": "http://localhost:8000",
+      "/export-pdf": "http://localhost:8000",
       "/classes": "http://localhost:8000",
     },
   },
