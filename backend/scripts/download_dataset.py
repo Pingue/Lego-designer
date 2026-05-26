@@ -53,34 +53,49 @@ RANDOM_SEED = 42
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _class_from_filename(stem: str) -> str:
-    """'3001 Brick 2x4_0123' → '3001 Brick 2x4'"""
-    m = re.match(r"^(.*?)[\s_]\d{1,5}$", stem)
+    """'3001 Brick 2x4_0123' or '3001 brick 2x4 043L' → '3001 brick 2x4'"""
+    # Allow optional L/R view suffix after the sequence number (Kaggle naming scheme)
+    m = re.match(r"^(.*?)[\s_]\d{1,6}[LlRr]?$", stem)
     return m.group(1).strip() if m else stem.strip()
 
 
 def _find_classes(root: Path) -> dict[str, list[Path]]:
     """
     Returns {class_name: [image_path, ...]} by searching root.
-    Tries class-subdirectory layout first; falls back to filename parsing.
+    Handles both class-per-subdirectory layout and flat directories
+    (e.g. a 'dataset/' dump) where the class is encoded in the filename.
+    Uses case-insensitive dedup so named subdirs and flat-dump entries
+    for the same brick type don't appear twice.
     """
     classes: dict[str, list[Path]] = {}
+    seen_lower: set[str] = set()  # lowercase class names already added
 
-    # Pass 1: directories that directly contain images → use dir name as class
     for d in sorted(root.rglob("*")):
         if not d.is_dir():
             continue
         images = [f for f in d.iterdir() if f.is_file() and f.suffix.lower() in IMAGE_EXTS]
-        if len(images) >= 5:
-            classes[d.name] = sorted(images)
+        if len(images) < 5:
+            continue
 
-    if classes:
-        return classes
-
-    # Pass 2: flat folder — extract class from filename
-    for img in sorted(root.rglob("*")):
-        if img.is_file() and img.suffix.lower() in IMAGE_EXTS:
+        # Count how many distinct filename-parsed classes live in this directory
+        by_class: dict[str, list[Path]] = {}
+        for img in images:
             cls = _class_from_filename(img.stem)
-            classes.setdefault(cls, []).append(img)
+            by_class.setdefault(cls, []).append(img)
+
+        if len(by_class) <= 3:
+            # Single-class directory: use the directory name as the label
+            key = d.name.lower()
+            if key not in seen_lower:
+                classes[d.name] = sorted(images)
+                seen_lower.add(key)
+        else:
+            # Flat dump: multiple classes encoded in filenames — split them out
+            for cls_name, cls_imgs in by_class.items():
+                key = cls_name.lower()
+                if len(cls_imgs) >= 5 and key not in seen_lower:
+                    classes[cls_name] = sorted(cls_imgs)
+                    seen_lower.add(key)
 
     return classes
 
