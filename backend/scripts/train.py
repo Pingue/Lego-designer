@@ -90,14 +90,17 @@ def main():
     from classifier.model import build_model
     model = build_model(num_classes).to(device)
 
-    # Freeze backbone, only train classifier + last inverted residual block
-    for name, param in model.named_parameters():
-        if "classifier" not in name and "features.12" not in name and "features.11" not in name:
-            param.requires_grad = False
+    # Fine-tune the full network: backbone gets a lower LR, head gets the full LR.
+    # Lego bricks are visually unlike ImageNet, so the backbone needs to adapt too.
+    backbone_params = [p for n, p in model.named_parameters() if "classifier" not in n]
+    head_params     = [p for n, p in model.named_parameters() if "classifier" in n]
 
     optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=LR, weight_decay=WEIGHT_DECAY,
+        [
+            {"params": backbone_params, "lr": LR / 10},
+            {"params": head_params,     "lr": LR},
+        ],
+        weight_decay=WEIGHT_DECAY,
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=EPOCHS)
     criterion = nn.CrossEntropyLoss()
