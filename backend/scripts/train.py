@@ -78,13 +78,20 @@ def main():
     num_classes = len(class_names)
     print(f"Classes ({num_classes}): {class_names}")
 
-    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
-                              num_workers=NUM_WORKERS, pin_memory=True)
-    valid_loader = DataLoader(valid_ds, batch_size=BATCH_SIZE, shuffle=False,
-                              num_workers=NUM_WORKERS, pin_memory=True)
-
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     print(f"Training on: {device}")
+
+    # pin_memory only helps CUDA; it's unsupported on MPS and warns.
+    pin_memory = device == "cuda"
+    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True,
+                              num_workers=NUM_WORKERS, pin_memory=pin_memory)
+    valid_loader = DataLoader(valid_ds, batch_size=BATCH_SIZE, shuffle=False,
+                              num_workers=NUM_WORKERS, pin_memory=pin_memory)
 
     sys.path.insert(0, str(ROOT))
     from classifier.model import build_model
