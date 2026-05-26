@@ -246,6 +246,44 @@ def check_raw() -> bool:
         return False
 
 
+def add_background_class(classes: dict[str, list[Path]], n_images: int = 800) -> None:
+    """
+    Download STL-10 (96×96 real photos: animals, vehicles, objects) and add
+    a sample as a 'background' class so the model can reject non-Lego inputs.
+    Images are saved to RAW_DIR/background/ and injected into classes in-place.
+    """
+    from torchvision.datasets import STL10
+    from PIL import Image as PILImage
+
+    bg_dir = RAW_DIR / "background"
+    existing = sorted(bg_dir.glob("*.png")) if bg_dir.exists() else []
+
+    if len(existing) >= n_images:
+        print(f"Background class already present ({len(existing)} images).")
+        classes["background"] = existing[:n_images]
+        return
+
+    print(f"Downloading STL-10 for background class (~250 MB, one-time) ...")
+    bg_dir.mkdir(parents=True, exist_ok=True)
+
+    dataset = STL10(root=str(RAW_DIR / "stl10_raw"), split="train+unlabeled",
+                    download=True)
+
+    random.seed(RANDOM_SEED)
+    indices = random.sample(range(len(dataset)), min(n_images, len(dataset)))
+
+    saved: list[Path] = []
+    from tqdm import tqdm
+    for idx in tqdm(indices, desc="Saving background images", unit="img", dynamic_ncols=True):
+        img_tensor, _ = dataset[idx]
+        out_path = bg_dir / f"background_{idx:06d}.png"
+        img_tensor.save(out_path)
+        saved.append(out_path)
+
+    classes["background"] = saved
+    print(f"Added {len(saved)} background images.")
+
+
 if __name__ == "__main__":
     if check_existing():
         print("Skipping download. Delete data/lego_bricks/ to re-download.")
@@ -264,4 +302,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"Found {len(classes)} classes, {sum(len(v) for v in classes.values())} images total.")
+    add_background_class(classes)
     _split_and_copy(classes, OUT_DIR)

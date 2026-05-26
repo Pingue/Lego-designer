@@ -41,15 +41,25 @@ def classify_image(
     image = _decode_image(image_bytes)
     tensor = _transform(image).unsqueeze(0).to(device)
 
+    # Temperature >1 flattens overconfident softmax distributions.
+    # OOD inputs (faces, background) tend to activate the network weakly
+    # across many classes; temperature scaling exposes this spread.
+    TEMPERATURE = 2.0
+
     with torch.no_grad():
         logits = model(tensor)
-        probs = F.softmax(logits, dim=1)[0]
+        probs = F.softmax(logits / TEMPERATURE, dim=1)[0]
 
     top3_vals, top3_idx = torch.topk(probs, min(3, len(class_names)))
     top3 = [
         {"label": class_names[i.item()], "confidence": round(v.item(), 4)}
         for v, i in zip(top3_vals, top3_idx)
     ]
+
+    # If the model's top prediction is the background class, report zero
+    # confidence so the frontend threshold rejects it.
+    if top3[0]["label"] == "background":
+        return {"label": "background", "confidence": 0.0, "top3": top3}
 
     return {
         "label": top3[0]["label"],
