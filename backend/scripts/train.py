@@ -52,6 +52,7 @@ def get_transforms(train: bool):
             transforms.RandomVerticalFlip(),
             transforms.RandomRotation(20),
             transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2),
+            transforms.RandomGrayscale(p=0.3),  # colour-invariance: forces shape focus
             transforms.ToTensor(),
             transforms.Normalize(IMAGENET_MEAN, IMAGENET_STD),
         ])
